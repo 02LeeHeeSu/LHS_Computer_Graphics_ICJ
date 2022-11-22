@@ -26,12 +26,15 @@ void Keyboard(unsigned char key, int x, int y);
 void InitBuffer();
 GLfloat colors[2][12][3][3];
 
+glm::vec3 cameraPos = glm::vec3(0.0f, 1.0f, -1.4f);
+glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
 objRead objReader;
 GLint s1[2] = {
 	objReader.loadObj_normalize_center("cube.obj"),
 	objReader.loadObj_normalize_center("cube.obj")
 };
-
 int main(int argc, char** argv)
 {
 	glutInit(&argc, argv);
@@ -103,7 +106,7 @@ void InitBuffer()
 		glGenBuffers(2, VBO);
 
 		glUseProgram(s_program[0]);
-		glBindVertexArray(VAO[0]);
+		glBindVertexArray(VAO[i]);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 		glBufferData(GL_ARRAY_BUFFER, objReader.outvertex.size() * sizeof(glm::vec3), &objReader.outvertex[0], GL_STATIC_DRAW);
 		GLint pAttribute = glGetAttribLocation(s_program[0], "aPos");
@@ -139,13 +142,19 @@ void Display()
 
 		glUseProgram(s_program[0]);
 
-		glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &proj[0][0]);
+		proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+		proj = glm::translate(proj, glm::vec3(0.0, 0.0, -2.0));
+
+		glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+
+		view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
 
 		glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
 
-		model = glm::rotate(model, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		model = glm::rotate(model, glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+		if(i == 0)
+			model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+		else 
+			model = glm::scale(model, glm::vec3(0.2f, 0.3f, 0.2f));
 
 		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
@@ -167,6 +176,27 @@ void Keyboard(unsigned char key, int x, int y)
 	else if (key == '2')
 		polygon_mode = 2;
 	switch (key) {
+	case 'x': 
+		cameraPos.x += 0.1f;
+		break;
+	case 'X':
+		cameraPos.x -= 0.1f;
+		break;
+	case 'y':
+		cameraPos.y += 0.1f;
+		break;
+	case 'Y':
+		cameraPos.y -= 0.1f;
+		break;
+	case 'z':
+		cameraPos.z += 0.1f;
+		break;
+	case 'Z':
+		cameraPos.z -= 0.1f;
+		break;
+	case 'e':
+		printf("%f %f %f", cameraPos.x, cameraPos.y, cameraPos.z);
+		break;
 	case 'q': case 'Q':
 		for (int i = 0; i < 2; i++) {
 			glDeleteVertexArrays(1, &VAO[i]);
