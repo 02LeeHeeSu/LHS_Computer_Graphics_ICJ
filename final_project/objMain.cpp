@@ -10,8 +10,8 @@ using namespace std;
 GLuint g_window_w = 600;
 GLuint g_window_h = 600;
 
-
-GLuint VAO[2];
+const int obj_num = 5;
+GLuint VAO[obj_num];
 GLuint VBO[2];
 int polygon_mode = 2;
 
@@ -24,14 +24,18 @@ void Display();
 void Reshape(int w, int h);
 void Keyboard(unsigned char key, int x, int y);
 void InitBuffer();
-GLfloat colors[2][12][3][3];
+GLfloat colors[obj_num][12][3][3];
 
 glm::vec3 cameraPos = glm::vec3(0.0f, 1.0f, -1.4f);
 glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
+
 objRead objReader;
-GLint s1[2] = {
+GLint s1[5] = {
+	objReader.loadObj_normalize_center("cube.obj"),
+	objReader.loadObj_normalize_center("cube.obj"),
+	objReader.loadObj_normalize_center("cube.obj"),
 	objReader.loadObj_normalize_center("cube.obj"),
 	objReader.loadObj_normalize_center("cube.obj")
 };
@@ -67,7 +71,7 @@ int main(int argc, char** argv)
 	glLinkProgram(s_program[0]);
 	checkCompileErrors(s_program[0], "PROGRAM");
 
-	for (int a = 0; a < 2; a++) {
+	for (int a = 0; a < obj_num; a++) {
 		for (int i = 0; i < 12; i++) {
 			for (int j = 0; j < 3; j++)
 				for (int k = 0; k < 3; k++) {
@@ -79,6 +83,26 @@ int main(int argc, char** argv)
 					}
 					else if (a == 1) {
 						if (k != 1)
+							colors[a][i][j][k] = 0.0f;
+						else
+							colors[a][i][j][k] = 1.0f;
+					}
+					else if (a == 2) {
+						if (k == 0)
+							colors[a][i][j][k] = 1.0f;
+						else if (k == 1)
+							colors[a][i][j][k] = 0.8f;
+						else
+							colors[a][i][j][k] = 0.0f;
+					}
+					else if (a == 3) {
+						if (k == 0)
+							colors[a][i][j][k] = 1.0f;
+						else
+							colors[a][i][j][k] = 0.0f;
+					}
+					else if (a == 4) {
+						if (k == 0)
 							colors[a][i][j][k] = 0.0f;
 						else
 							colors[a][i][j][k] = 1.0f;
@@ -101,7 +125,7 @@ int main(int argc, char** argv)
 }
 void InitBuffer()
 {
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < obj_num; i++) {
 		glGenVertexArrays(1, &VAO[i]);
 		glGenBuffers(2, VBO);
 
@@ -131,7 +155,7 @@ void Display()
 	else if (polygon_mode == 2)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < obj_num; i++) {
 		model = glm::mat4(1.0f);
 		view = glm::mat4(1.0f);
 		proj = glm::mat4(1.0f);
@@ -151,10 +175,21 @@ void Display()
 
 		glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
 
-		if(i == 0)
-			model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-		else 
+		if (i == 1)
+			model = glm::translate(model, glm::vec3(0.0f, 0.3f, 0.0f));
+		else if (i == 2)
+			model = glm::translate(model, glm::vec3(-0.4f, 0.05f, 0.0f));
+		else if (i == 3)
+			model = glm::translate(model, glm::vec3(0.0f, 0.05f, 0.0f));
+		else if (i == 4)
+			model = glm::translate(model, glm::vec3(0.4f, 0.05f, 0.0f));
+
+		if (i == 0)
+			model = glm::scale(model, glm::vec3(30.0f, 30.0f, 30.0f));
+		else if (i == 1)
 			model = glm::scale(model, glm::vec3(0.2f, 0.3f, 0.2f));
+		else
+			model = glm::scale(model, glm::vec3(0.2f, 0.1f, 20.0f));
 
 		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
@@ -198,7 +233,7 @@ void Keyboard(unsigned char key, int x, int y)
 		printf("%f %f %f", cameraPos.x, cameraPos.y, cameraPos.z);
 		break;
 	case 'q': case 'Q':
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < obj_num; i++) {
 			glDeleteVertexArrays(1, &VAO[i]);
 			glDeleteBuffers(2, VBO);
 		}
