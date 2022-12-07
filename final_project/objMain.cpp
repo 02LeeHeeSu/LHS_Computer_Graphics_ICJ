@@ -6,9 +6,36 @@
 
 using namespace std;
 
-
 GLuint g_window_w = 800;
 GLuint g_window_h = 800;
+
+int polygon_mode = 1;
+
+const int num_vertices = 3;
+const int num_triangles = 1;
+
+objRead objReader, obr;
+GLint s1 = objReader.loadObj_normalize_center("cube.obj");
+GLint s2 = obr.loadObj_normalize_center("sphere.obj");
+
+GLuint VAO_portal;
+GLuint VAO_block[3];	// 0: 점프, 1: 벽, 2: 슬라이딩
+GLuint VAO_enemy[3];
+GLuint VAO_0[obj_num0];
+GLuint VAO_1[obj_num1];
+GLuint VAO_2[obj_num2];
+GLuint VAO_3[obj_num3];
+GLuint VAO_4[obj_num4];
+GLuint VBO[2];
+
+glm::mat4 model{ 1.f }, view{ 1.f }, proj{ 1.f };
+
+GLfloat color_portal[1124][3][3];
+GLfloat color_enemy[1][1124][3][3];
+GLfloat color_stage_0_to_3[5][12][3][3]{};
+GLfloat color_stage4[2][12][3][3];
+
+unsigned int stage_number = 4;
 
 const int road_number2 = 3;
 const int corner_number2 = 2;
@@ -22,56 +49,127 @@ const int obj_num2 = 1 + road_number2 * 3 + corner_number2;
 const int obj_num3 = 1 + road_number3 * 3 + corner_number3;
 const int obj_num4 = 50;
 
-objRead objReader;
-GLint s1 = objReader.loadObj_normalize_center("cube.obj");
+glm::vec3 cameraPos = glm::vec3(0.0f, 1.0f, 1.4f);
+glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-unsigned int stage_number = 4;
+float road_length = 10.f;
+float corner_length = 0.6f;
+float dx = 0.f, dz = 0.f;
 
-GLuint VAO_0[obj_num0];
-GLuint VAO_1[obj_num1];
-GLuint VAO_2[obj_num2];
-GLuint VAO_3[obj_num3];
-GLuint VAO_4[obj_num4];
-GLuint VBO[2];
+GLfloat move_object_x = 0.0f, move_object_y = -0.23f, move_object_z = 0.0f;
+GLfloat object_speed = 0.05f, average_speed = 0.05f, great_speed = 0.2f;
+GLfloat sight_x = 0.0f, sight_y = 0.005f, sight_z = 0.01f;
+GLfloat object_scale_y = 0.07f;
+GLfloat object_jump_speed = object_speed / 2.0f;
+GLfloat object_slide_speed = 0.01f;
+BOOL JUMP = false, SLIDE = false;
+GLfloat object_jump_dir = 1.0f, object_slide_dir = 1.0f;
 
-int polygon_mode = 1;
-
-glm::mat4 model{ 1.f }, view{ 1.f }, proj{ 1.f };
-
+void define_color_portal();
+void define_color_enemy();
 void define_color_stage_0_to_3();
 void define_color_stage4();
+void check_load_collide();
 void Reset_Position();
+void Enemy();
 void Hero();
 void Stage0();
 void Stage1();
 void Stage2();
 void Stage3();
 void Stage4();
+void Block_jump();
+void Block_wall();
+void Block_slide();
+void Portal();
+void InitBuffer();
 void Display();
 void Reshape(int w, int h);
 void Keyboard(unsigned char key, int x, int y);
-void InitBuffer();
+void TimerFunction(int value);
 
-GLfloat color_stage_0_to_3[5][12][3][3]{};
-GLfloat color_stage4[2][12][3][3];
+void define_color_portal()
+{
+	for (int i = 0; i < 1124; i++) {
+		switch (i % 3) {
+		case 0: {
+			for (int j = 0; j < 3; j++) {
+				for (int k = 0; k < 3; k++) {
+					switch (k) {
+					case 0: {
+						color_portal[i][j][k] = 0.6f;
+						break;
+					}
+					case 1: {
+						color_portal[i][j][k] = 1.f;
+						break;
+					}
+					case 2: {
+						color_portal[i][j][k] = 1.f;
+						break;
+					}
+					}
+				}
+			}
 
-glm::vec3 cameraPos = glm::vec3(0.0f, 1.0f, 1.4f);
-glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+			break;
+		}
+		case 1: {
+			for (int j = 0; j < 3; j++) {
+				for (int k = 0; k < 3; k++) {
+					switch (k) {
+					case 0: {
+						color_portal[i][j][k] = 0.2f;
+						break;
+					}
+					case 1: {
+						color_portal[i][j][k] = 1.f;
+						break;
+					}
+					case 2: {
+						color_portal[i][j][k] = 0.8f;
+						break;
+					}
+					}
+				}
+			}
 
-const int num_vertices = 3;
-const int num_triangles = 1;
+			break;
+		}
+		case 2: {
+			for (int j = 0; j < 3; j++) {
+				for (int k = 0; k < 3; k++) {
+					switch (k) {
+					case 0: {
+						color_portal[i][j][k] = 0.2f;
+						break;
+					}
+					case 1: {
+						color_portal[i][j][k] = 0.8f;
+						break;
+					}
+					case 2: {
+						color_portal[i][j][k] = 1.f;
+						break;
+					}
+					}
+				}
+			}
 
-float road_length = 10.f;
-float corner_length = 0.6f;
-float dx = 0.f, dz = 0.f;
-
-GLfloat move_object_x = 0.0f, move_object_z = 0.0f;
-GLfloat object_speed = 0.05f, average_speed = 0.05f, great_speed = 0.2f;
-GLfloat sight_x = 0.0f, sight_y = 0.005f, sight_z = 0.01f;
-
-
-
+			break;
+		}
+		}
+	}
+}
+void define_color_enemy()
+{
+	for (int i = 0; i < 1124; i++)
+		for (int j = 0; j < 3; j++)
+			for (int k = 0; k < 3; k++) {
+				color_enemy[0][i][j][k] = 0.5f;
+			}
+}
 void define_color_stage_0_to_3()
 {
 	for (int a = 0; a < 5; a++) {
@@ -161,12 +259,124 @@ void define_color_stage4() {
 				}
 	}
 }
+void check_load_collide() {
+	switch (stage_number) {
+	case 0: case 1:
+		if (move_object_x > 0.4f)
+			move_object_x = 0.4f;
+		else if (move_object_x < -0.4f)
+			move_object_x = -0.4f;
+		if (move_object_z > 0.0f)
+			move_object_z = 0.0f;
+		else if (move_object_z < -20.0f + 0.025f)
+			move_object_z = -20.0f + 0.025f;
+		break;
+	case 2:
+		if (move_object_x > -0.4f && move_object_x <= 0.4f) {
+			if (move_object_z > 0.0f)
+				move_object_z = 0.0f;
+			else if (move_object_z < -21.2f + 0.025f)
+				move_object_z = -21.2f + 0.025f;
+		}
+		else if (move_object_x < -0.4f && move_object_x >= -20.0f - 0.4f) {
+			if (move_object_z >= -20.0f + 0.025f)
+				move_object_z -= object_speed;
+			else if (move_object_z < -21.2f + 0.025f)
+				move_object_z += object_speed;
+		}
+		else if (move_object_x < -20.0f - 0.4f && move_object_x >= -21.2f - 0.4f) {
+			if (move_object_z >= -20.0f + 0.025f)
+				move_object_z -= object_speed;
+			else if (move_object_z < -41.2f + 0.025f)
+				move_object_z = -41.2f + 0.025f;
+		}
 
+		if (move_object_z <= 0.0f && move_object_z > -20.0f + 0.025f) {
+			if (move_object_x > 0.4f)
+				move_object_x -= object_speed;
+			else if (move_object_x < -0.4f) {
+				move_object_x += object_speed;
+				move_object_z += object_speed;
+			}
+		}
+		else if (move_object_z <= -20.0f + 0.025f && move_object_z >= -21.2f + 0.025f) {
+			if (move_object_x > 0.4f)
+				move_object_x -= object_speed;
+			else if (move_object_x < -21.2f - 0.4f)
+				move_object_x += object_speed;
+		}
+		else if (move_object_z < -21.2f + 0.025f && move_object_z >= -41.2f + 0.025f) {
+			if (move_object_x > -20.0f - 0.4f) {
+				move_object_x -= object_speed;
+				move_object_z -= object_speed;
+			}
+			else if (move_object_x <= -21.2f - 0.4f)
+				move_object_x += object_speed;
+		}
+
+		break;
+	case 4:
+		if (move_object_x > 4.7f)
+			move_object_x = 4.7f;
+		else if (move_object_x < -4.7f)
+			move_object_x = -4.7;
+		if (move_object_z > 4.7f)
+			move_object_z = 4.7f;
+		else if (move_object_z < -4.7f)
+			move_object_z = -4.7;
+		break;
+	}
+}
 void Reset_Position() {
 	move_object_x = 0.0f, move_object_z = 0.0f;
 }
+void Enemy()
+{
+	for (int i = 0; i < 3; i++) {
+		model = glm::mat4(1.0f);
+		view = glm::mat4(1.0f);
+		proj = glm::mat4(1.0f);
+
+		unsigned int modelLocation = glGetUniformLocation(s_program[0], "m");
+		unsigned int viewLocation = glGetUniformLocation(s_program[0], "v");
+		unsigned int projectionLocation = glGetUniformLocation(s_program[0], "p");
+
+		glUseProgram(s_program[0]);
+
+		proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+		proj = glm::translate(proj, glm::vec3(0.0, 0.0, -2.0));
+
+		glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+
+		view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+
+		glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+		switch (i)
+		{
+		case 0:
+			model = glm::translate(model, glm::vec3(-0.4f, -0.23f, 0.4f));
+			break;
+		case 1:
+			model = glm::translate(model, glm::vec3(0.f, -0.23f, 0.4f));
+			break;
+		case 2:
+			model = glm::translate(model, glm::vec3(0.4f, -0.23f, 0.4f));
+			break;
+		default:
+			break;
+		}
+
+		model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+		glBindVertexArray(VAO_enemy[i]);
+		glDrawArrays(GL_TRIANGLES, 0, s2);
+	}
+}
 void Hero()
 {
+	check_load_collide();
+
 	cameraPos.x = move_object_x;
 	cameraPos.y = sight_y;
 	cameraPos.z = move_object_z + sight_z;
@@ -193,8 +403,8 @@ void Hero()
 
 	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
 
-	model = glm::translate(model, glm::vec3(move_object_x, 0.0f, move_object_z));
-	model = glm::scale(model, glm::vec3(0.05f, 0.07f, 0.05f));
+	model = glm::translate(model, glm::vec3(move_object_x, -0.23f, move_object_z));
+	model = glm::scale(model, glm::vec3(0.2f, 0.07f, 0.05f));
 
 	glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 }
@@ -204,6 +414,11 @@ void Stage0()
 	Hero();
 	glBindVertexArray(VAO_0[0]);
 	glDrawArrays(GL_TRIANGLES, 0, s1);
+
+	Block_jump();
+	Block_wall();
+	Block_slide();
+	Portal();
 
 	for (int objnumber = 1; objnumber < obj_num0; objnumber++) {
 		model = glm::mat4(1.0f);
@@ -255,6 +470,11 @@ void Stage1()
 	glBindVertexArray(VAO_1[0]);
 	glDrawArrays(GL_TRIANGLES, 0, s1);
 
+	Block_jump();
+	Block_wall();
+	Block_slide();
+	Portal();
+
 	for (int objnumber = 1; objnumber < obj_num1; objnumber++) {
 		model = glm::mat4(1.0f);
 		view = glm::mat4(1.0f);
@@ -304,6 +524,11 @@ void Stage2()
 	Hero();
 	glBindVertexArray(VAO_2[0]);
 	glDrawArrays(GL_TRIANGLES, 0, s1);
+
+	Block_jump();
+	Block_wall();
+	Block_slide();
+	Portal();
 
 	for (int objnumber = 1; objnumber < obj_num2; objnumber++) {
 		model = glm::mat4(1.0f);
@@ -432,11 +657,16 @@ void Stage2()
 }
 void Stage3()
 {
-	// 길 하나에 드는 큐브 수가 3개임을 감안해서 수정
 	// 5 * 3 + 4 + 1 = 15 + 4 + 1
 	Hero();
 	glBindVertexArray(VAO_3[0]);
 	glDrawArrays(GL_TRIANGLES, 0, s1);
+
+	Block_jump();
+	Block_wall();
+	Block_slide();
+	Portal();
+
 	for (int objnumber = 1; objnumber < obj_num3; objnumber++) {
 		model = glm::mat4(1.0f);
 		view = glm::mat4(1.0f);
@@ -608,6 +838,12 @@ void Stage4() {
 	Hero();
 	glBindVertexArray(VAO_4[0]);
 	glDrawArrays(GL_TRIANGLES, 0, s1);
+
+	Block_jump();
+	Block_wall();
+	Block_slide();
+	Portal();
+
 	GLfloat stage4_dir_x = 1, stage4_dir_z = 1;
 	for (int i = 1; i <= sqrt(obj_num4); i++) {
 		if (i > 4)
@@ -659,6 +895,320 @@ void Stage4() {
 		}
 	}
 }
+void Block_jump()
+{
+	model = glm::mat4(1.0f);
+	view = glm::mat4(1.0f);
+	proj = glm::mat4(1.0f);
+
+	glUseProgram(s_program[0]);
+
+	unsigned int modelLocation = glGetUniformLocation(s_program[0], "m");
+	unsigned int viewLocation = glGetUniformLocation(s_program[0], "v");
+	unsigned int projectionLocation = glGetUniformLocation(s_program[0], "p");
+
+	proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	proj = glm::translate(proj, glm::vec3(0.0, 0.0, -2.0));
+
+	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+
+	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+
+	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+
+	switch (stage_number) {
+	case 0: {
+		model = glm::translate(model, glm::vec3(0.f, -0.16f, -6.6f - 0.6f));
+		model = glm::scale(model, glm::vec3(0.6f, 0.14f, 0.6f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_block[0]);
+		glDrawArrays(GL_TRIANGLES, 0, s1);
+		break;
+	}
+	case 1: {
+		break;
+	}
+	case 2: {
+		for (int i = 0; i < 2; i++) {
+			model = glm::mat4(1.0f);
+
+			switch (i) {
+			case 0: {
+				model = glm::translate(model, glm::vec3(13.3f - 0.6f - 20.6f, -0.16f, -20.6f));
+				model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+				model = glm::scale(model, glm::vec3(0.6f, 0.14f, 0.6f));
+
+				glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+				glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+				glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+				glBindVertexArray(VAO_block[0]);
+				glDrawArrays(GL_TRIANGLES, 0, s1);
+
+				break;
+			}
+
+			case 1: {
+				model = glm::translate(model, glm::vec3(-0.6f - 20.6f, -0.16f, -6.6f - 0.6f - 20.6f));
+				model = glm::scale(model, glm::vec3(0.6f, 0.14f, 0.6f));
+
+				glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+				glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+				glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+				glBindVertexArray(VAO_block[0]);
+				glDrawArrays(GL_TRIANGLES, 0, s1);
+
+				break;
+			}
+			}
+		}
+		break;
+	}
+	case 3: {
+		break;
+	}
+	case 4: {
+		break;
+	}
+	}
+}
+void Block_wall()
+{
+	model = glm::mat4(1.0f);
+	view = glm::mat4(1.0f);
+	proj = glm::mat4(1.0f);
+
+	glUseProgram(s_program[0]);
+
+	unsigned int modelLocation = glGetUniformLocation(s_program[0], "m");
+	unsigned int viewLocation = glGetUniformLocation(s_program[0], "v");
+	unsigned int projectionLocation = glGetUniformLocation(s_program[0], "p");
+
+	proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	proj = glm::translate(proj, glm::vec3(0.0, 0.0, -2.0));
+
+	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+
+	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+
+	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+
+	switch (stage_number) {
+	case 0: {
+		break;
+	}
+	case 1: {
+		model = glm::translate(model, glm::vec3(0.2f, 0.05f, -6.6f - 0.6f));
+		model = glm::scale(model, glm::vec3(0.4f, 0.35f, 0.6f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_block[1]);
+		glDrawArrays(GL_TRIANGLES, 0, s1);
+
+		model = glm::mat4(1.f);
+		model = glm::translate(model, glm::vec3(-0.2f, 0.05f, -13.3f - 0.6f));
+		model = glm::scale(model, glm::vec3(0.4f, 0.35f, 0.6f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_block[1]);
+		glDrawArrays(GL_TRIANGLES, 0, s1);
+
+		break;
+	}
+	case 2: {
+		for (int i = 0; i < 2; i++) {
+			model = glm::mat4(1.0f);
+
+			switch (i) {
+			case 0: {
+				model = glm::translate(model, glm::vec3(0.2f, 0.05f, -13.3f - 0.6f));
+				model = glm::scale(model, glm::vec3(0.4f, 0.35f, 0.6f));
+
+				glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+				glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+				glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+				glBindVertexArray(VAO_block[1]);
+				glDrawArrays(GL_TRIANGLES, 0, s1);
+
+				break;
+			}
+
+			case 1: {
+				model = glm::translate(model, glm::vec3(6.6f - 0.6f - 20.6f, -0.16f, -20.6f));
+				model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+				model = glm::scale(model, glm::vec3(0.4f, 0.35f, 0.6f));
+
+				glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+				glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+				glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+				glBindVertexArray(VAO_block[1]);
+				glDrawArrays(GL_TRIANGLES, 0, s1);
+
+				break;
+			}
+			}
+		}
+
+		break;
+	}
+	case 3: {
+		break;
+	}
+	case 4: {
+		break;
+	}
+	}
+}
+void Block_slide()
+{
+	model = glm::mat4(1.0f);
+	view = glm::mat4(1.0f);
+	proj = glm::mat4(1.0f);
+
+	glUseProgram(s_program[0]);
+
+	unsigned int modelLocation = glGetUniformLocation(s_program[0], "m");
+	unsigned int viewLocation = glGetUniformLocation(s_program[0], "v");
+	unsigned int projectionLocation = glGetUniformLocation(s_program[0], "p");
+
+	proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	proj = glm::translate(proj, glm::vec3(0.0, 0.0, -2.0));
+
+	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+
+	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+
+	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+
+	switch (stage_number) {
+	case 0: {
+		model = glm::translate(model, glm::vec3(0.f, 0.3f, -13.3f - 0.6f));
+		model = glm::scale(model, glm::vec3(0.6f, 0.5f, 0.6f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_block[2]);
+		glDrawArrays(GL_TRIANGLES, 0, s1);
+
+		break;
+	}
+	case 1: {
+		break;
+	}
+	case 2: {
+		for (int i = 0; i < 2; i++) {
+			model = glm::mat4(1.0f);
+
+			switch (i) {
+			case 0: {
+				model = glm::translate(model, glm::vec3(0.f, 0.3f, -6.6f - 0.6f));
+				model = glm::scale(model, glm::vec3(0.6f, 0.5f, 0.6f));
+
+				glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+				glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+				glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+				glBindVertexArray(VAO_block[2]);
+				glDrawArrays(GL_TRIANGLES, 0, s1);
+
+				break;
+			}
+
+			case 1: {
+				model = glm::translate(model, glm::vec3(-0.6f - 20.6f, 0.3f, -13.3f - 0.6f - 20.6f));
+				model = glm::scale(model, glm::vec3(0.6f, 0.5f, 0.6f));
+
+				glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+				glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+				glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+				glBindVertexArray(VAO_block[2]);
+				glDrawArrays(GL_TRIANGLES, 0, s1);
+
+				break;
+			}
+			}
+		}
+
+		break;
+	}
+	case 3: {
+		break;
+	}
+	case 4: {
+		break;
+	}
+	}
+}
+void Portal()
+{
+	model = glm::mat4(1.0f);
+	view = glm::mat4(1.0f);
+	proj = glm::mat4(1.0f);
+
+	glUseProgram(s_program[0]);
+
+	unsigned int modelLocation = glGetUniformLocation(s_program[0], "m");
+	unsigned int viewLocation = glGetUniformLocation(s_program[0], "v");
+	unsigned int projectionLocation = glGetUniformLocation(s_program[0], "p");
+
+	proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	proj = glm::translate(proj, glm::vec3(0.0, 0.0, -2.0));
+
+	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &proj[0][0]);
+
+	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+
+	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+
+	switch (stage_number) {
+	case 0: {
+		model = glm::translate(model, glm::vec3(0.f, -0.2f, -20.f));
+		model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_portal);
+		glDrawArrays(GL_TRIANGLES, 0, s2);
+		break;
+	}
+	case 1: {
+		model = glm::translate(model, glm::vec3(0.f, -0.2f, -20.f));
+		model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_portal);
+		glDrawArrays(GL_TRIANGLES, 0, s2);
+
+		break;
+	}
+	case 2: {
+		model = glm::translate(model, glm::vec3(-20.6f, -0.2f, -40.f));
+		model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
+
+		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindVertexArray(VAO_portal);
+		glDrawArrays(GL_TRIANGLES, 0, s2);
+
+		break;
+	}
+	case 3: {
+		break;
+	}
+	case 4: {
+		break;
+	}
+	}
+}
 
 int main(int argc, char** argv)
 {
@@ -692,6 +1242,8 @@ int main(int argc, char** argv)
 	glLinkProgram(s_program[0]);
 	checkCompileErrors(s_program[0], "PROGRAM");
 
+	define_color_portal();
+	define_color_enemy();
 	define_color_stage_0_to_3();
 	define_color_stage4();
 
@@ -710,6 +1262,61 @@ int main(int argc, char** argv)
 
 void InitBuffer()
 {
+	glGenVertexArrays(1, &VAO_portal);
+	glGenBuffers(2, VBO);
+	glUseProgram(s_program[0]);
+	glBindVertexArray(VAO_portal);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+	glBufferData(GL_ARRAY_BUFFER, obr.outvertex.size() * sizeof(glm::vec3), &obr.outvertex[0], GL_STATIC_DRAW);
+	GLint pAttribute = glGetAttribLocation(s_program[0], "aPos");
+	glVertexAttribPointer(pAttribute, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	glEnableVertexAttribArray(pAttribute);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+	glBufferData(GL_ARRAY_BUFFER, obr.outnormal.size() * sizeof(glm::vec3), color_portal, GL_STATIC_DRAW);
+	GLint nAttribute = glGetAttribLocation(s_program[0], "in_Color");
+	glVertexAttribPointer(nAttribute, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	glEnableVertexAttribArray(nAttribute);
+
+	for (int i = 0; i < 3; i++) {
+		glGenVertexArrays(1, &VAO_enemy[i]);
+		glGenBuffers(2, VBO);
+		glUseProgram(s_program[0]);
+		glBindVertexArray(VAO_enemy[i]);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+		glBufferData(GL_ARRAY_BUFFER, obr.outvertex.size() * sizeof(glm::vec3), &obr.outvertex[0], GL_STATIC_DRAW);
+		GLint pAttribute = glGetAttribLocation(s_program[0], "aPos");
+		glVertexAttribPointer(pAttribute, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+		glEnableVertexAttribArray(pAttribute);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+		glBufferData(GL_ARRAY_BUFFER, obr.outnormal.size() * sizeof(glm::vec3), color_enemy[0], GL_STATIC_DRAW);
+		GLint nAttribute = glGetAttribLocation(s_program[0], "in_Color");
+		glVertexAttribPointer(nAttribute, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+		glEnableVertexAttribArray(nAttribute);
+	}
+
+	for (int i = 0; i < 3; i++) {
+		glGenVertexArrays(1, &VAO_block[i]);
+		glGenBuffers(2, VBO);
+
+		glUseProgram(s_program[0]);
+		glBindVertexArray(VAO_block[i]);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+		glBufferData(GL_ARRAY_BUFFER, objReader.outvertex.size() * sizeof(glm::vec3), &objReader.outvertex[0], GL_STATIC_DRAW);
+		GLint pAttribute = glGetAttribLocation(s_program[0], "aPos");
+		glVertexAttribPointer(pAttribute, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+		glEnableVertexAttribArray(pAttribute);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+		glBufferData(GL_ARRAY_BUFFER, objReader.outnormal.size() * sizeof(glm::vec3), color_enemy[0], GL_STATIC_DRAW);
+		GLint nAttribute = glGetAttribLocation(s_program[0], "in_Color");
+		glVertexAttribPointer(nAttribute, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+		glEnableVertexAttribArray(nAttribute);
+	}
+
 		for (int i = 0; i < obj_num0; i++) {
 			glGenVertexArrays(1, &VAO_0[i]);
 			glGenBuffers(2, VBO);
@@ -835,22 +1442,29 @@ void Display()
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	switch (stage_number) {
-	case 0: 
+	case 0: {
 		Stage0();
 		break;
-	case 1:
+	}
+	case 1: {
 		Stage1();
 		break;
-	case 2:
-		Stage2();
-		break;
-	case 3:
+	}
+	case 2: {
+		  Stage2();
+
+		  break;
+	}
+	case 3: {
 		Stage3();
 		break;
-	case 4:
+	}
+	case 4: {
 		Stage4();
 		break;
 	}
+	}
+
 	glutSwapBuffers();
 }
 
@@ -886,8 +1500,8 @@ void Keyboard(unsigned char key, int x, int y)
 			Reset_Position();
 			stage_number = 4;
 			break; }
-		// wasd+-
-				 
+
+		// wasd+-	 
 		{case 'w': case 'W':
 			move_object_z -= object_speed;
 			break;
@@ -910,6 +1524,45 @@ void Keyboard(unsigned char key, int x, int y)
 			if (object_speed < average_speed / 2)
 				object_speed = average_speed / 2;
 			break; }
+
+		// jump , slide
+		{
+		case 'j': case 'J':
+			JUMP = true;
+			SLIDE = false;
+			glutTimerFunc(100, TimerFunction, 0);
+			break;
+		case 'l': case 'L':
+			JUMP = false;
+			SLIDE = true;
+			glutTimerFunc(100, TimerFunction, 1);
+			break;
+		}
+
+		/*{
+		case 'x':
+			cameraPos.x += 0.1f;
+			break;
+		case 'X':
+			cameraPos.x -= 0.1f;
+			break;
+		case 'y':
+			cameraPos.y += 0.1f;
+			break;
+		case 'Y':
+			cameraPos.y -= 0.1f;
+			break;
+		case 'z':
+			cameraPos.z += 0.1f;
+			break;
+		case 'Z':
+			cameraPos.z -= 0.1f;
+			break;
+		case 'e':
+			printf("%f %f %f", cameraPos.x, cameraPos.y, cameraPos.z);
+			break;
+		}*/
+
 	case 'q': case 'Q':
 		for (int i = 0; i < obj_num0; i++) {
 			glDeleteVertexArrays(1, &VAO_0[i]);
@@ -938,4 +1591,34 @@ void Keyboard(unsigned char key, int x, int y)
 	}
 
 	glutPostRedisplay();
+}
+
+void TimerFunction(int value)
+{
+	if (JUMP) {
+		move_object_y += object_jump_dir * object_jump_speed;
+		if (move_object_y <= -0.23f) {
+			move_object_y = -0.23f;
+			object_jump_dir *= -1;
+			JUMP = false;
+		}
+		else if (move_object_y > -0.09f)
+			object_jump_dir *= -1;
+	}
+	if (SLIDE) {
+		object_scale_y -= object_slide_dir * object_slide_speed;
+		if (object_scale_y >= 0.07f) {
+			object_scale_y = 0.07f;
+			object_slide_dir *= -1;
+			SLIDE = false;
+		}
+		else if (object_scale_y <= 0.02f)
+			object_slide_dir *= -1;
+
+	}
+
+	InitBuffer();
+	glutPostRedisplay();
+	if (JUMP || SLIDE)
+		glutTimerFunc(100, TimerFunction, 1);
 }
